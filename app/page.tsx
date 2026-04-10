@@ -33,7 +33,6 @@ export default function Home() {
 
     let userData = progressMap[normalizedEmail]
 
-    // 初始化
     if (!userData) {
       userData = {
         unlocked: [],
@@ -42,15 +41,13 @@ export default function Home() {
       }
     }
 
-    // 如果是新的一天 → 重置计数
     if (userData.lastDate !== today) {
       userData.todayCount = 0
       userData.lastDate = today
     }
 
-    // 🚫 限制：每天最多2块
-    if (userData.todayCount >= 2) {
-      setMessage('You have reached today’s limit (2 pieces). Come back tomorrow 🌱')
+    if (userData.todayCount >= 3) {
+      setMessage('Today’s mission is complete 🌱')
       setCurrentEmail(normalizedEmail)
       setEmail('')
       return
@@ -73,14 +70,21 @@ export default function Home() {
     userData.unlocked.push(randomIndex)
     userData.todayCount += 1
 
+    const reachedLimit = userData.todayCount >= 3
+
     setProgressMap((prev) => ({
       ...prev,
       [normalizedEmail]: { ...userData },
     }))
 
     setCurrentEmail(normalizedEmail)
-    setMessage('')
     setEmail('')
+
+    if (reachedLimit) {
+      setMessage('Today’s mission is complete 🌱')
+    } else {
+      setMessage('')
+    }
   }
 
   return (
@@ -115,7 +119,6 @@ export default function Home() {
           </button>
         </form>
 
-        {/* 拼图 */}
         <div className="mt-8 grid grid-cols-3 gap-3">
           {Array.from({ length: 9 }).map((_, i) => {
             const row = Math.floor(i / 3)
@@ -145,11 +148,11 @@ export default function Home() {
         </p>
 
         <p className="mt-3 text-xs text-gray-500">
-          You can unlock up to 2 puzzle pieces per day.
+          You can unlock up to 3 puzzle pieces per day.
         </p>
 
         {message && (
-          <p className="mt-2 text-xs text-red-500">
+          <p className="mt-2 text-xs text-green-600">
             {message}
           </p>
         )}
