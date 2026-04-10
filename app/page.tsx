@@ -1,25 +1,48 @@
 'use client'
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
+
+type ProgressMap = Record<string, number[]>
 
 export default function Home() {
   const [email, setEmail] = useState('')
-  const [unlocked, setUnlocked] = useState<number[]>([])
+  const [currentEmail, setCurrentEmail] = useState('')
+  const [progressMap, setProgressMap] = useState<ProgressMap>({})
+
+  const currentUnlocked = useMemo(() => {
+    if (!currentEmail) return []
+    return progressMap[currentEmail] || []
+  }, [currentEmail, progressMap])
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
-    if (!email) return
 
-    const remaining = Array.from({ length: 9 })
-      .map((_, i) => i)
-      .filter((i) => !unlocked.includes(i))
+    const normalizedEmail = email.trim().toLowerCase()
+    if (!normalizedEmail) return
 
-    if (remaining.length === 0) return
+    const existingUnlocked = progressMap[normalizedEmail] || []
+
+    const remaining = Array.from({ length: 9 }, (_, i) => i).filter(
+      (i) => !existingUnlocked.includes(i)
+    )
+
+    if (remaining.length === 0) {
+      setCurrentEmail(normalizedEmail)
+      setEmail('')
+      return
+    }
 
     const randomIndex =
       remaining[Math.floor(Math.random() * remaining.length)]
 
-    setUnlocked([...unlocked, randomIndex])
+    const updatedUnlocked = [...existingUnlocked, randomIndex]
+
+    setProgressMap((prev) => ({
+      ...prev,
+      [normalizedEmail]: updatedUnlocked,
+    }))
+
+    setCurrentEmail(normalizedEmail)
     setEmail('')
   }
 
@@ -59,7 +82,7 @@ export default function Home() {
           {Array.from({ length: 9 }).map((_, i) => {
             const row = Math.floor(i / 3)
             const col = i % 3
-            const isUnlocked = unlocked.includes(i)
+            const isUnlocked = currentUnlocked.includes(i)
 
             return (
               <div
@@ -80,12 +103,18 @@ export default function Home() {
         </div>
 
         <p className="mt-5 text-sm">
-          Progress: {unlocked.length} / 9
+          Progress: {currentUnlocked.length} / 9
         </p>
 
         <p className="mt-3 text-xs text-gray-500">
           You can unlock up to one puzzle piece per day.
         </p>
+
+        {currentEmail && (
+          <p className="mt-2 text-xs text-gray-500 break-all">
+            Current email: {currentEmail}
+          </p>
+        )}
       </div>
     </main>
   )
