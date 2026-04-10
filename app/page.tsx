@@ -2,17 +2,28 @@
 
 import { useMemo, useState } from 'react'
 
-type ProgressMap = Record<string, number[]>
+type UserProgress = {
+  unlocked: number[]
+  todayCount: number
+  lastDate: string
+}
+
+type ProgressMap = Record<string, UserProgress>
 
 export default function Home() {
   const [email, setEmail] = useState('')
   const [currentEmail, setCurrentEmail] = useState('')
   const [progressMap, setProgressMap] = useState<ProgressMap>({})
+  const [message, setMessage] = useState('')
 
-  const currentUnlocked = useMemo(() => {
-    if (!currentEmail) return []
-    return progressMap[currentEmail] || []
+  const today = new Date().toISOString().split('T')[0]
+
+  const currentData = useMemo(() => {
+    if (!currentEmail) return null
+    return progressMap[currentEmail]
   }, [currentEmail, progressMap])
+
+  const currentUnlocked = currentData?.unlocked || []
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -20,13 +31,37 @@ export default function Home() {
     const normalizedEmail = email.trim().toLowerCase()
     if (!normalizedEmail) return
 
-    const existingUnlocked = progressMap[normalizedEmail] || []
+    let userData = progressMap[normalizedEmail]
+
+    // 初始化
+    if (!userData) {
+      userData = {
+        unlocked: [],
+        todayCount: 0,
+        lastDate: today,
+      }
+    }
+
+    // 如果是新的一天 → 重置计数
+    if (userData.lastDate !== today) {
+      userData.todayCount = 0
+      userData.lastDate = today
+    }
+
+    // 🚫 限制：每天最多2块
+    if (userData.todayCount >= 2) {
+      setMessage('You have reached today’s limit (2 pieces). Come back tomorrow 🌱')
+      setCurrentEmail(normalizedEmail)
+      setEmail('')
+      return
+    }
 
     const remaining = Array.from({ length: 9 }, (_, i) => i).filter(
-      (i) => !existingUnlocked.includes(i)
+      (i) => !userData.unlocked.includes(i)
     )
 
     if (remaining.length === 0) {
+      setMessage('Puzzle completed 🎉')
       setCurrentEmail(normalizedEmail)
       setEmail('')
       return
@@ -35,14 +70,16 @@ export default function Home() {
     const randomIndex =
       remaining[Math.floor(Math.random() * remaining.length)]
 
-    const updatedUnlocked = [...existingUnlocked, randomIndex]
+    userData.unlocked.push(randomIndex)
+    userData.todayCount += 1
 
     setProgressMap((prev) => ({
       ...prev,
-      [normalizedEmail]: updatedUnlocked,
+      [normalizedEmail]: { ...userData },
     }))
 
     setCurrentEmail(normalizedEmail)
+    setMessage('')
     setEmail('')
   }
 
@@ -78,6 +115,7 @@ export default function Home() {
           </button>
         </form>
 
+        {/* 拼图 */}
         <div className="mt-8 grid grid-cols-3 gap-3">
           {Array.from({ length: 9 }).map((_, i) => {
             const row = Math.floor(i / 3)
@@ -107,8 +145,14 @@ export default function Home() {
         </p>
 
         <p className="mt-3 text-xs text-gray-500">
-          You can unlock up to one puzzle piece per day.
+          You can unlock up to 2 puzzle pieces per day.
         </p>
+
+        {message && (
+          <p className="mt-2 text-xs text-red-500">
+            {message}
+          </p>
+        )}
 
         {currentEmail && (
           <p className="mt-2 text-xs text-gray-500 break-all">
