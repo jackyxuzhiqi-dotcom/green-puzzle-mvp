@@ -29,6 +29,7 @@ export default function Home() {
     <main className="min-h-screen flex items-center justify-center px-6 bg-white">
       <div className="w-full max-w-md rounded-2xl border p-6 shadow-sm">
 
+        {/* 标题 */}
         <h1 className="text-2xl font-semibold mb-3">
           Green Puzzle MVP
         </h1>
@@ -44,7 +45,7 @@ export default function Home() {
             placeholder="you@example.com"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="w-full rounded-xl border px-4 py-3"
+            className="w-full rounded-xl border px-4 py-3 outline-none"
           />
 
           <button
@@ -53,6 +54,13 @@ export default function Home() {
           >
             Continue
           </button>
+
+          {/* 邮箱说明 + 规则 */}
+          <p className="text-xs text-gray-500">
+            Enter your email to save your progress and receive rewards 🎁.  
+            We don’t send spam.  
+            You can unlock up to one puzzle piece per day.
+          </p>
         </form>
 
         {/* 拼图 */}
@@ -72,6 +80,7 @@ export default function Home() {
                   backgroundPosition: `${col * 50}% ${row * 50}%`,
                 }}
               >
+                {/* 未解锁 → 深绿色渐变遮罩 */}
                 {!isUnlocked && (
                   <div className="absolute inset-0 bg-gradient-to-br from-green-900 to-green-700 opacity-95 transition-all duration-300" />
                 )}
@@ -80,6 +89,7 @@ export default function Home() {
           })}
         </div>
 
+        {/* 进度 */}
         <p className="mt-4 text-sm">
           Progress: {unlocked.length} / 9
         </p>
