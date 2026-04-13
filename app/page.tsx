@@ -161,7 +161,7 @@ export default function Home() {
             <form onSubmit={handleEmailContinue} className="space-y-4">
               <input
                 type="email"
-                placeholder="you@school.edu"
+                placeholder="you@callutheran.edu"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="w-full rounded-[1.5rem] border-2 px-4 py-4 text-lg outline-none"
