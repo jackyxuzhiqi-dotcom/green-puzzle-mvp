@@ -99,14 +99,6 @@ export default function Home() {
       setProgress(row)
 
       if ((row.unlocked_pieces ?? []).length >= 9) {
-         await supabase
-         .from('puzzle_progress')
-         .update({
-         reward_claimed: true,
-         updated_at: new Date().toISOString(),
-         })
-    .eq('email', currentEmail)
-
         setStep('success')
       } else {
         setStep('puzzle')
@@ -128,6 +120,29 @@ export default function Home() {
       const latestUnlocked = progress.unlocked_pieces ?? []
 
       if (latestUnlocked.length >= 9) {
+        if (!progress.reward_claimed) {
+          const { data: completedRow, error: completeError } = await supabase
+            .from('puzzle_progress')
+            .update({
+              reward_claimed: true,
+              updated_at: new Date().toISOString(),
+            })
+            .eq('email', currentEmail)
+            .select()
+            .single()
+
+          if (completeError) {
+            throw completeError
+          }
+
+          setProgress({
+            ...completedRow,
+            unlocked_pieces: Array.isArray(completedRow.unlocked_pieces)
+              ? completedRow.unlocked_pieces
+              : [],
+          } as PuzzleProgressRow)
+        }
+
         setStep('success')
         return
       }
@@ -137,6 +152,27 @@ export default function Home() {
       )
 
       if (remaining.length === 0) {
+        const { data: completedRow, error: completeError } = await supabase
+          .from('puzzle_progress')
+          .update({
+            reward_claimed: true,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('email', currentEmail)
+          .select()
+          .single()
+
+        if (completeError) {
+          throw completeError
+        }
+
+        setProgress({
+          ...completedRow,
+          unlocked_pieces: Array.isArray(completedRow.unlocked_pieces)
+            ? completedRow.unlocked_pieces
+            : [],
+        } as PuzzleProgressRow)
+
         setStep('success')
         return
       }
@@ -145,6 +181,7 @@ export default function Home() {
         remaining[Math.floor(Math.random() * remaining.length)]
 
       const updatedUnlocked = [...latestUnlocked, randomIndex]
+      const isCompleted = updatedUnlocked.length >= 9
 
       const { data: updated, error: updateError } = await supabase
         .from('puzzle_progress')
@@ -152,6 +189,7 @@ export default function Home() {
           unlocked_pieces: updatedUnlocked,
           today_count: (progress.today_count ?? 0) + 1,
           last_unlock_date: today,
+          reward_claimed: isCompleted ? true : progress.reward_claimed,
           updated_at: new Date().toISOString(),
         })
         .eq('email', currentEmail)
@@ -171,16 +209,14 @@ export default function Home() {
 
       setProgress(updatedRow)
 
-      const totalUnlocked = updatedRow.unlocked_pieces.length
-
-      if (totalUnlocked >= 9) {
+      if (updatedRow.unlocked_pieces.length >= 9) {
         setStep('success')
         return
       }
 
-      if (totalUnlocked >= 6) {
+      if (updatedRow.unlocked_pieces.length >= 6) {
         setMessage('You’re almost there 👀')
-      } else if (totalUnlocked >= 3) {
+      } else if (updatedRow.unlocked_pieces.length >= 3) {
         setMessage('Great start 🌱')
       } else {
         setMessage('')
@@ -210,6 +246,7 @@ export default function Home() {
 
     try {
       setLoading(true)
+
       const { data: resetData, error } = await supabase
         .from('puzzle_progress')
         .update({
@@ -232,7 +269,8 @@ export default function Home() {
         unlocked_pieces: Array.isArray(resetData.unlocked_pieces)
           ? resetData.unlocked_pieces
           : [],
-      })
+      } as PuzzleProgressRow)
+
       setMessage('')
       setStep('puzzle')
     } catch (error: any) {
@@ -250,7 +288,7 @@ export default function Home() {
         const row = await loadOrCreateProgress(currentEmail)
         setProgress(row)
       } catch {
-        // ignore
+        // ignore for now
       }
     }
 
