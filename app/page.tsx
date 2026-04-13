@@ -99,6 +99,14 @@ export default function Home() {
       setProgress(row)
 
       if ((row.unlocked_pieces ?? []).length >= 9) {
+await supabase
+    .from('puzzle_progress')
+    .update({
+      reward_claimed: true,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('email', currentEmail)
+
         setStep('success')
       } else {
         setStep('puzzle')
