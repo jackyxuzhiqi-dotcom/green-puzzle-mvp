@@ -34,6 +34,12 @@ export default function Home() {
     const normalizedEmail = email.trim().toLowerCase()
     if (!normalizedEmail) return
 
+    // ✅ 限制学校邮箱
+    if (!normalizedEmail.endsWith('@callutheran.edu')) {
+      setMessage('Please use your CLU email (@callutheran.edu) to participate.')
+      return
+    }
+
     setCurrentEmail(normalizedEmail)
     setMessage('')
     setStep('puzzle')
@@ -57,6 +63,7 @@ export default function Home() {
       userData.lastDate = today
     }
 
+    // ✅ 每天只能1次
     if (userData.todayCount >= 1) {
       setMessage('Today’s mission is complete 🌱')
       return
@@ -68,7 +75,7 @@ export default function Home() {
 
     if (remaining.length === 0) {
       setMessage(
-        'Puzzle completed 🎉 We will notify you by email with reward collection details.'
+        'Puzzle completed 🎉 A $5 Starbucks gift card will be sent to your email. Each email can only receive one reward.'
       )
       return
     }
@@ -88,7 +95,7 @@ export default function Home() {
 
     if (totalUnlocked === 9) {
       setMessage(
-        'Puzzle completed 🎉 We will notify you by email with reward collection details.'
+        'Puzzle completed 🎉 A $5 Starbucks gift card will be sent to your email. Each email can only receive one reward.'
       )
       return
     }
@@ -119,24 +126,24 @@ export default function Home() {
   return (
     <main className="min-h-screen flex items-center justify-center px-6 bg-white">
       <div className="w-full max-w-md rounded-[2rem] border-2 p-8 shadow-sm">
+
+        {/* Intro */}
         {step === 'intro' && (
           <>
             <h1 className="text-center text-2xl font-semibold mb-4">
               Green Puzzle
             </h1>
 
-            <p className="text-sm text-gray-700 leading-6 mb-4">
-              Welcome to Green Puzzle, a simple recycling challenge designed to
-              encourage daily sustainable action.
+            <p className="text-sm text-gray-700 mb-4">
+              A campus recycling challenge designed to encourage daily sustainable action.
             </p>
 
-            <p className="text-sm text-gray-700 leading-6 mb-4">
-              Each time you recycle and participate, you can unlock a random
-              puzzle piece and gradually reveal the full image.
+            <p className="text-sm text-gray-700 mb-4">
+              Each time you recycle, you can unlock a puzzle piece and gradually reveal the full image.
             </p>
 
-            <p className="text-sm text-gray-700 leading-6 mb-8">
-              Complete the puzzle to unlock the final reward 🎁
+            <p className="text-sm text-gray-700 mb-8">
+              Complete the puzzle to receive a reward 🎁
             </p>
 
             <button
@@ -148,6 +155,7 @@ export default function Home() {
           </>
         )}
 
+        {/* Email */}
         {step === 'email' && (
           <>
             <h1 className="text-center text-2xl font-semibold mb-4">
@@ -155,7 +163,7 @@ export default function Home() {
             </h1>
 
             <p className="text-center text-sm text-gray-600 mb-6">
-              Enter your school email to save your progress
+              Enter your CLU email to participate
             </p>
 
             <form onSubmit={handleEmailContinue} className="space-y-4">
@@ -167,10 +175,8 @@ export default function Home() {
                 className="w-full rounded-[1.5rem] border-2 px-4 py-4 text-lg outline-none"
               />
 
-              <p className="text-xs text-gray-500 leading-5">
-                Please use your school email to participate. Your email will be
-                used to save your progress and notify you how to collect your
-                reward after the puzzle is completed.
+              <p className="text-xs text-gray-500">
+                Please use your CLU email. It will be used to track your progress and send your reward after completion.
               </p>
 
               <button
@@ -181,6 +187,12 @@ export default function Home() {
               </button>
             </form>
 
+            {message && (
+              <p className="mt-3 text-xs text-red-500">
+                {message}
+              </p>
+            )}
+
             <button
               onClick={handleBackToIntro}
               className="w-full mt-4 text-sm text-gray-500"
@@ -190,6 +202,7 @@ export default function Home() {
           </>
         )}
 
+        {/* Puzzle */}
         {step === 'puzzle' && (
           <>
             <h1 className="text-center text-2xl font-semibold mb-3">
@@ -204,7 +217,7 @@ export default function Home() {
               onClick={handleRecycle}
               className="w-full rounded-[1.5rem] border-2 px-4 py-4 text-lg"
             >
-              Recycle
+              I Recycled
             </button>
 
             <div className="mt-8 grid grid-cols-3 gap-3">
@@ -224,7 +237,7 @@ export default function Home() {
                     }}
                   >
                     {!isUnlocked && (
-                      <div className="absolute inset-0 bg-gradient-to-br from-green-900 to-green-700 opacity-95 transition-all duration-300" />
+                      <div className="absolute inset-0 bg-gradient-to-br from-green-900 to-green-700 opacity-95" />
                     )}
                   </div>
                 )
@@ -235,10 +248,8 @@ export default function Home() {
               Progress: {currentUnlocked.length} / 9
             </p>
 
-            <p className="mt-3 text-xs text-gray-500 leading-5">
-              You can unlock up to 1 puzzle piece per day. After the full puzzle
-              is completed, reward collection details will be sent by email.
-              Please use your school email.
+            <p className="mt-3 text-xs text-gray-500">
+              You can unlock 1 puzzle piece per day. Complete all 9 pieces to receive a $5 Starbucks gift card via email. Each email can only receive one reward.
             </p>
 
             {message && (
@@ -249,11 +260,12 @@ export default function Home() {
 
             {currentEmail && (
               <p className="mt-2 text-xs text-gray-500 break-all">
-                Current email: {currentEmail}
+                {currentEmail}
               </p>
             )}
           </>
         )}
+
       </div>
     </main>
   )
