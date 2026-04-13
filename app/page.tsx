@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 
-type Step = 'intro' | 'email' | 'puzzle'
+type Step = 'intro' | 'email' | 'puzzle' | 'success'
 
 type PuzzleProgressRow = {
   id?: number
@@ -41,7 +41,7 @@ export default function Home() {
     }
 
     if (existing) {
-      const normalizedExisting: PuzzleProgressRow = {
+      return {
         ...existing,
         unlocked_pieces: Array.isArray(existing.unlocked_pieces)
           ? existing.unlocked_pieces
@@ -49,33 +49,7 @@ export default function Home() {
         today_count: existing.today_count ?? 0,
         last_unlock_date: existing.last_unlock_date ?? null,
         reward_claimed: existing.reward_claimed ?? false,
-      }
-
-      if (normalizedExisting.last_unlock_date !== today) {
-        const { data: resetData, error: resetError } = await supabase
-          .from('puzzle_progress')
-          .update({
-            today_count: 0,
-            last_unlock_date: today,
-            updated_at: new Date().toISOString(),
-          })
-          .eq('email', normalizedEmail)
-          .select()
-          .single()
-
-        if (resetError) {
-          throw resetError
-        }
-
-        return {
-          ...resetData,
-          unlocked_pieces: Array.isArray(resetData.unlocked_pieces)
-            ? resetData.unlocked_pieces
-            : [],
-        } as PuzzleProgressRow
-      }
-
-      return normalizedExisting
+      } as PuzzleProgressRow
     }
 
     const newRow: PuzzleProgressRow = {
@@ -123,7 +97,12 @@ export default function Home() {
 
       setCurrentEmail(normalizedEmail)
       setProgress(row)
-      setStep('puzzle')
+
+      if ((row.unlocked_pieces ?? []).length >= 9) {
+        setStep('success')
+      } else {
+        setStep('puzzle')
+      }
     } catch (error: any) {
       setMessage(`Error: ${error.message}`)
     } finally {
@@ -132,79 +111,38 @@ export default function Home() {
   }
 
   const handleRecycle = async () => {
-    if (!currentEmail) return
-    if (!progress) return
+    if (!currentEmail || !progress) return
 
     try {
       setLoading(true)
       setMessage('')
 
-      let latest = progress
+      const latestUnlocked = progress.unlocked_pieces ?? []
 
-      if (latest.last_unlock_date !== today) {
-        const { data: resetData, error: resetError } = await supabase
-          .from('puzzle_progress')
-          .update({
-            today_count: 0,
-            last_unlock_date: today,
-            updated_at: new Date().toISOString(),
-          })
-          .eq('email', currentEmail)
-          .select()
-          .single()
-
-        if (resetError) {
-          throw resetError
-        }
-
-        latest = {
-          ...resetData,
-          unlocked_pieces: Array.isArray(resetData.unlocked_pieces)
-            ? resetData.unlocked_pieces
-            : [],
-        } as PuzzleProgressRow
-      }
-
-      if ((latest.unlocked_pieces ?? []).length >= 9) {
-        setMessage(
-          latest.reward_claimed
-            ? 'Puzzle completed 🎉 Your reward has already been claimed.'
-            : 'Puzzle completed 🎉 A $5 Starbucks gift card will be sent to your email. Each email can only receive one reward.'
-        )
-        setProgress(latest)
-        return
-      }
-
-      if ((latest.today_count ?? 0) >= 1) {
-        setMessage('Today’s mission is complete 🌱')
-        setProgress(latest)
+      if (latestUnlocked.length >= 9) {
+        setStep('success')
         return
       }
 
       const remaining = Array.from({ length: 9 }, (_, i) => i).filter(
-        (i) => !(latest.unlocked_pieces ?? []).includes(i)
+        (i) => !latestUnlocked.includes(i)
       )
 
       if (remaining.length === 0) {
-        setMessage(
-          latest.reward_claimed
-            ? 'Puzzle completed 🎉 Your reward has already been claimed.'
-            : 'Puzzle completed 🎉 A $5 Starbucks gift card will be sent to your email. Each email can only receive one reward.'
-        )
-        setProgress(latest)
+        setStep('success')
         return
       }
 
       const randomIndex =
         remaining[Math.floor(Math.random() * remaining.length)]
 
-      const updatedUnlocked = [...(latest.unlocked_pieces ?? []), randomIndex]
+      const updatedUnlocked = [...latestUnlocked, randomIndex]
 
       const { data: updated, error: updateError } = await supabase
         .from('puzzle_progress')
         .update({
           unlocked_pieces: updatedUnlocked,
-          today_count: 1,
+          today_count: (progress.today_count ?? 0) + 1,
           last_unlock_date: today,
           updated_at: new Date().toISOString(),
         })
@@ -225,16 +163,20 @@ export default function Home() {
 
       setProgress(updatedRow)
 
-      if (updatedRow.unlocked_pieces.length >= 9) {
-        setMessage(
-          updatedRow.reward_claimed
-            ? 'Puzzle completed 🎉 Your reward has already been claimed.'
-            : 'Puzzle completed 🎉 A $5 Starbucks gift card will be sent to your email. Each email can only receive one reward.'
-        )
+      const totalUnlocked = updatedRow.unlocked_pieces.length
+
+      if (totalUnlocked >= 9) {
+        setStep('success')
         return
       }
 
-      setMessage('Today’s mission is complete 🌱')
+      if (totalUnlocked >= 6) {
+        setMessage('You’re almost there 👀')
+      } else if (totalUnlocked >= 3) {
+        setMessage('Great start 🌱')
+      } else {
+        setMessage('')
+      }
     } catch (error: any) {
       setMessage(`Error: ${error.message}`)
     } finally {
@@ -252,21 +194,59 @@ export default function Home() {
     setMessage('')
   }
 
+  const handleRestartTest = async () => {
+    if (!currentEmail) {
+      setStep('intro')
+      return
+    }
+
+    try {
+      setLoading(true)
+      const { data: resetData, error } = await supabase
+        .from('puzzle_progress')
+        .update({
+          unlocked_pieces: [],
+          today_count: 0,
+          reward_claimed: false,
+          last_unlock_date: today,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('email', currentEmail)
+        .select()
+        .single()
+
+      if (error) {
+        throw error
+      }
+
+      setProgress({
+        ...resetData,
+        unlocked_pieces: Array.isArray(resetData.unlocked_pieces)
+          ? resetData.unlocked_pieces
+          : [],
+      })
+      setMessage('')
+      setStep('puzzle')
+    } catch (error: any) {
+      setMessage(`Error: ${error.message}`)
+    } finally {
+      setLoading(false)
+    }
+  }
+
   useEffect(() => {
-    if (!currentEmail) return
+    if (!currentEmail || step !== 'puzzle') return
 
     const refreshProgress = async () => {
       try {
         const row = await loadOrCreateProgress(currentEmail)
         setProgress(row)
       } catch {
-        // keep quiet here
+        // ignore
       }
     }
 
-    if (step === 'puzzle') {
-      refreshProgress()
-    }
+    refreshProgress()
   }, [currentEmail, step])
 
   return (
@@ -357,7 +337,7 @@ export default function Home() {
             </h1>
 
             <p className="mb-6 text-center text-sm text-gray-600">
-              Recycle to unlock one puzzle piece per day 🌱
+              Test mode: unlock pieces continuously 🌱
             </p>
 
             <button
@@ -397,9 +377,8 @@ export default function Home() {
             </p>
 
             <p className="mt-3 text-xs leading-5 text-gray-500">
-              You can unlock 1 puzzle piece per day. Complete all 9 pieces to
-              receive a $5 Starbucks gift card via email. Each email can only
-              receive one reward.
+              Test mode is enabled. Daily limit is temporarily disabled for full
+              flow testing.
             </p>
 
             {message && (
@@ -413,6 +392,34 @@ export default function Home() {
                 {currentEmail}
               </p>
             )}
+          </>
+        )}
+
+        {step === 'success' && (
+          <>
+            <h1 className="mb-4 text-center text-2xl font-semibold text-green-700">
+              Congratulations 🎉
+            </h1>
+
+            <p className="mb-4 text-center text-sm leading-6 text-gray-700">
+              You completed the Green Puzzle.
+            </p>
+
+            <p className="mb-6 text-center text-sm leading-6 text-gray-700">
+              Your reward is on the way 🎁
+            </p>
+
+            <p className="mb-6 text-center text-xs leading-5 text-gray-500 break-all">
+              {currentEmail}
+            </p>
+
+            <button
+              onClick={handleRestartTest}
+              disabled={loading}
+              className="w-full rounded-[1.5rem] border-2 px-4 py-4 text-lg"
+            >
+              {loading ? 'Resetting...' : 'Restart Test'}
+            </button>
           </>
         )}
       </div>
