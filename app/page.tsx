@@ -501,9 +501,10 @@ export default function Home() {
             </p>
 
             <button
-              onClick={() => setStep('intro')}
+   onClick={() => setStep('puzzle')}
   className="w-full rounded-[1.5rem] border-2 px-4 py-4 text-lg"
 >
+  Back
   Back
             </button>
           </>
