@@ -501,11 +501,10 @@ export default function Home() {
             </p>
 
             <button
-              onClick={handleRestartTest}
-              disabled={loading}
+              onClick={() => setStep('puzzle')}
               className="w-full rounded-[1.5rem] border-2 px-4 py-4 text-lg"
-            >
-              {loading ? 'Resetting...' : 'Restart Test'}
+              >
+              Back
             </button>
           </>
         )}
