@@ -15,6 +15,18 @@ type PuzzleProgressRow = {
   updated_at?: string
 }
 
+const greenFacts = [
+  'Recycling one aluminum can saves enough energy to power a TV for about 3 hours.',
+  'Plastic bottles can take over 400 years to break down if not properly recycled.',
+  'Glass can be recycled endlessly without losing quality or purity.',
+  'Every recycled bottle or can is one less item in a landfill or the ocean.',
+  'Recycling aluminum uses up to 95% less energy than making it from raw materials.',
+  'The average person generates over 4 pounds of waste every day.',
+  'Only about 9% of plastic ever produced has been recycled globally.',
+  'A single recycled plastic bottle can be turned into clothing, carpets, or new containers.',
+  'Small actions, repeated daily, can create a big environmental impact.',
+]
+
 export default function Home() {
   const [step, setStep] = useState<Step>('intro')
   const [email, setEmail] = useState('')
@@ -22,6 +34,9 @@ export default function Home() {
   const [progress, setProgress] = useState<PuzzleProgressRow | null>(null)
   const [message, setMessage] = useState('')
   const [loading, setLoading] = useState(false)
+
+  const [selectedFact, setSelectedFact] = useState<string | null>(null)
+  const [selectedPiece, setSelectedPiece] = useState<number | null>(null)
 
   const today = new Date().toISOString().split('T')[0]
 
@@ -280,6 +295,17 @@ export default function Home() {
     }
   }
 
+  const handlePieceClick = (pieceIndex: number, isUnlocked: boolean) => {
+    if (!isUnlocked) return
+    setSelectedPiece(pieceIndex + 1)
+    setSelectedFact(greenFacts[pieceIndex])
+  }
+
+  const handleCloseFactModal = () => {
+    setSelectedFact(null)
+    setSelectedPiece(null)
+  }
+
   useEffect(() => {
     if (!currentEmail || step !== 'puzzle') return
 
@@ -361,11 +387,7 @@ export default function Home() {
               </button>
             </form>
 
-            {message && (
-              <p className="mt-3 text-xs text-red-500">
-                {message}
-              </p>
-            )}
+            {message && <p className="mt-3 text-xs text-red-500">{message}</p>}
 
             <button
               onClick={handleBackToIntro}
@@ -403,7 +425,10 @@ export default function Home() {
                 return (
                   <div
                     key={i}
-                    className="relative h-24 overflow-hidden rounded-xl border-2"
+                    onClick={() => handlePieceClick(i, isUnlocked)}
+                    className={`relative h-24 overflow-hidden rounded-xl border-2 transition-transform duration-200 ${
+                      isUnlocked ? 'cursor-pointer hover:scale-[1.02]' : ''
+                    }`}
                     style={{
                       backgroundImage: `url('/puzzle.jpg')`,
                       backgroundSize: '300% 300%',
@@ -418,20 +443,14 @@ export default function Home() {
               })}
             </div>
 
-            <p className="mt-5 text-sm">
-              Progress: {currentUnlocked.length} / 9
-            </p>
+            <p className="mt-5 text-sm">Progress: {currentUnlocked.length} / 9</p>
 
             <p className="mt-3 text-xs leading-5 text-gray-500">
               Test mode is enabled. Daily limit is temporarily disabled for full
               flow testing.
             </p>
 
-            {message && (
-              <p className="mt-2 text-xs text-green-600">
-                {message}
-              </p>
-            )}
+            {message && <p className="mt-2 text-xs text-green-600">{message}</p>}
 
             {currentEmail && (
               <p className="mt-2 break-all text-xs text-gray-500">
@@ -469,6 +488,27 @@ export default function Home() {
           </>
         )}
       </div>
+
+      {selectedFact && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
+            <h2 className="mb-3 text-xl font-bold text-green-700">
+              Piece {selectedPiece} 🌱
+            </h2>
+
+            <p className="leading-7 text-gray-700">{selectedFact}</p>
+
+            <div className="mt-6 flex justify-end">
+              <button
+                onClick={handleCloseFactModal}
+                className="rounded-xl bg-green-600 px-4 py-2 text-white hover:bg-green-700"
+              >
+                Got it
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   )
 }
