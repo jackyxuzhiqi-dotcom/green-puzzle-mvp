@@ -44,6 +44,16 @@ export default function Home() {
     return progress?.unlocked_pieces ?? []
   }, [progress])
 
+  const openFactModal = (pieceIndex: number) => {
+    setSelectedPiece(pieceIndex + 1)
+    setSelectedFact(greenFacts[pieceIndex])
+  }
+
+  const closeFactModal = () => {
+    setSelectedFact(null)
+    setSelectedPiece(null)
+  }
+
   const loadOrCreateProgress = async (normalizedEmail: string) => {
     const { data: existing, error: fetchError } = await supabase
       .from('puzzle_progress')
@@ -225,6 +235,7 @@ export default function Home() {
       setProgress(updatedRow)
 
       if (updatedRow.unlocked_pieces.length >= 9) {
+        openFactModal(randomIndex)
         setStep('success')
         return
       }
@@ -236,6 +247,9 @@ export default function Home() {
       } else {
         setMessage('')
       }
+
+      // Auto-open the green fact for the newly unlocked piece
+      openFactModal(randomIndex)
     } catch (error: any) {
       setMessage(`Error: ${error.message}`)
     } finally {
@@ -287,6 +301,7 @@ export default function Home() {
       } as PuzzleProgressRow)
 
       setMessage('')
+      closeFactModal()
       setStep('puzzle')
     } catch (error: any) {
       setMessage(`Error: ${error.message}`)
@@ -297,13 +312,7 @@ export default function Home() {
 
   const handlePieceClick = (pieceIndex: number, isUnlocked: boolean) => {
     if (!isUnlocked) return
-    setSelectedPiece(pieceIndex + 1)
-    setSelectedFact(greenFacts[pieceIndex])
-  }
-
-  const handleCloseFactModal = () => {
-    setSelectedFact(null)
-    setSelectedPiece(null)
+    openFactModal(pieceIndex)
   }
 
   useEffect(() => {
@@ -322,7 +331,7 @@ export default function Home() {
   }, [currentEmail, step])
 
   return (
-    <main className="min-h-screen flex items-center justify-center px-6 bg-white">
+    <main className="min-h-screen flex items-center justify-center bg-white px-6">
       <div className="w-full max-w-md rounded-[2rem] border-2 p-8 shadow-sm">
         {step === 'intro' && (
           <>
@@ -423,22 +432,31 @@ export default function Home() {
                 const isUnlocked = currentUnlocked.includes(i)
 
                 return (
-                  <div
+                  <button
                     key={i}
+                    type="button"
                     onClick={() => handlePieceClick(i, isUnlocked)}
+                    disabled={!isUnlocked}
                     className={`relative h-24 overflow-hidden rounded-xl border-2 transition-transform duration-200 ${
-                      isUnlocked ? 'cursor-pointer hover:scale-[1.02]' : ''
+                      isUnlocked
+                        ? 'cursor-pointer hover:scale-[1.02]'
+                        : 'cursor-not-allowed'
                     }`}
                     style={{
                       backgroundImage: `url('/puzzle.jpg')`,
                       backgroundSize: '300% 300%',
                       backgroundPosition: `${col * 50}% ${row * 50}%`,
                     }}
+                    aria-label={
+                      isUnlocked
+                        ? `Open puzzle piece ${i + 1} green fact`
+                        : `Locked puzzle piece ${i + 1}`
+                    }
                   >
                     {!isUnlocked && (
                       <div className="absolute inset-0 bg-gradient-to-br from-green-900 to-green-700 opacity-95 transition-all duration-300" />
                     )}
-                  </div>
+                  </button>
                 )
               })}
             </div>
@@ -448,6 +466,10 @@ export default function Home() {
             <p className="mt-3 text-xs leading-5 text-gray-500">
               Test mode is enabled. Daily limit is temporarily disabled for full
               flow testing.
+            </p>
+
+            <p className="mt-2 text-xs leading-5 text-gray-500">
+              Tap any unlocked piece to view its green fact.
             </p>
 
             {message && <p className="mt-2 text-xs text-green-600">{message}</p>}
@@ -474,7 +496,7 @@ export default function Home() {
               Your reward is on the way 🎁
             </p>
 
-            <p className="mb-6 text-center text-xs leading-5 text-gray-500 break-all">
+            <p className="mb-6 break-all text-center text-xs leading-5 text-gray-500">
               {currentEmail}
             </p>
 
@@ -500,7 +522,7 @@ export default function Home() {
 
             <div className="mt-6 flex justify-end">
               <button
-                onClick={handleCloseFactModal}
+                onClick={closeFactModal}
                 className="rounded-xl bg-green-600 px-4 py-2 text-white hover:bg-green-700"
               >
                 Got it
