@@ -384,7 +384,7 @@ export default function Home() {
               <p className="text-xs leading-5 text-gray-500">
                 Please use your CLU email. It will be used to save your progress
                 and notify you how to collect your reward after the puzzle is
-                completed.
+                completed. No spam — just for this challenge.
               </p>
 
               <button
