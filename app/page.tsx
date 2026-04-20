@@ -371,9 +371,9 @@ export default function Home() {
               />
 
               <p className="text-xs font-medium leading-6 text-gray-500">
-                Please use your CLU email. It will be used to save your progress
-                and notify you how to collect your reward after the puzzle is
-                completed. No spam — just for this challenge.
+                By entering your email, you agree to participate in this recycling experiment. 
+                Your information will only be used to track progress and distribute rewards. 
+                No spam.
               </p>
 
               <button
