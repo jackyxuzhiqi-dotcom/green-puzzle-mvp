@@ -40,6 +40,10 @@ export default function Home() {
 
   const today = new Date().toISOString().split('T')[0]
 
+  const isSameDay = (dateStr: string | null, todayStr: string) => {
+    return dateStr === todayStr
+  }
+
   const currentUnlocked = useMemo(() => {
     return progress?.unlocked_pieces ?? []
   }, [progress])
@@ -80,7 +84,7 @@ export default function Home() {
     const newRow: PuzzleProgressRow = {
       email: normalizedEmail,
       unlocked_pieces: [],
-      last_unlock_date: today,
+      last_unlock_date: null,
       today_count: 0,
       reward_claimed: false,
     }
@@ -100,6 +104,9 @@ export default function Home() {
       unlocked_pieces: Array.isArray(created.unlocked_pieces)
         ? created.unlocked_pieces
         : [],
+      today_count: created.today_count ?? 0,
+      last_unlock_date: created.last_unlock_date ?? null,
+      reward_claimed: created.reward_claimed ?? false,
     } as PuzzleProgressRow
   }
 
@@ -144,6 +151,15 @@ export default function Home() {
 
       const latestUnlocked = progress.unlocked_pieces ?? []
 
+      const alreadyUnlockedToday =
+        isSameDay(progress.last_unlock_date, today) &&
+        (progress.today_count ?? 0) >= 1
+
+      if (alreadyUnlockedToday) {
+        setMessage("You've already unlocked today's piece. Come back tomorrow 🌱")
+        return
+      }
+
       if (latestUnlocked.length >= 9) {
         if (!progress.reward_claimed) {
           const { data: completedRow, error: completeError } = await supabase
@@ -165,6 +181,9 @@ export default function Home() {
             unlocked_pieces: Array.isArray(completedRow.unlocked_pieces)
               ? completedRow.unlocked_pieces
               : [],
+            today_count: completedRow.today_count ?? 0,
+            last_unlock_date: completedRow.last_unlock_date ?? null,
+            reward_claimed: completedRow.reward_claimed ?? false,
           } as PuzzleProgressRow)
         }
 
@@ -196,23 +215,34 @@ export default function Home() {
           unlocked_pieces: Array.isArray(completedRow.unlocked_pieces)
             ? completedRow.unlocked_pieces
             : [],
+          today_count: completedRow.today_count ?? 0,
+          last_unlock_date: completedRow.last_unlock_date ?? null,
+          reward_claimed: completedRow.reward_claimed ?? false,
         } as PuzzleProgressRow)
 
         setStep('success')
         return
       }
 
-      const randomIndex =
-        remaining[Math.floor(Math.random() * remaining.length)]
+      let nextPieceIndex: number
 
-      const updatedUnlocked = [...latestUnlocked, randomIndex]
+      // Keep piece 0 as the very last one to unlock.
+      if (latestUnlocked.length === 8 && remaining.includes(0)) {
+        nextPieceIndex = 0
+      } else {
+        const randomPool = remaining.filter((i) => i !== 0)
+        nextPieceIndex =
+          randomPool[Math.floor(Math.random() * randomPool.length)]
+      }
+
+      const updatedUnlocked = [...latestUnlocked, nextPieceIndex]
       const isCompleted = updatedUnlocked.length >= 9
 
       const { data: updated, error: updateError } = await supabase
         .from('puzzle_progress')
         .update({
           unlocked_pieces: updatedUnlocked,
-          today_count: (progress.today_count ?? 0) + 1,
+          today_count: 1,
           last_unlock_date: today,
           reward_claimed: isCompleted ? true : progress.reward_claimed,
           updated_at: new Date().toISOString(),
@@ -230,12 +260,15 @@ export default function Home() {
         unlocked_pieces: Array.isArray(updated.unlocked_pieces)
           ? updated.unlocked_pieces
           : [],
+        today_count: updated.today_count ?? 0,
+        last_unlock_date: updated.last_unlock_date ?? null,
+        reward_claimed: updated.reward_claimed ?? false,
       }
 
       setProgress(updatedRow)
 
       if (updatedRow.unlocked_pieces.length >= 9) {
-        openFactModal(randomIndex)
+        openFactModal(nextPieceIndex)
         setStep('success')
         return
       }
@@ -243,13 +276,12 @@ export default function Home() {
       if (updatedRow.unlocked_pieces.length >= 6) {
         setMessage('You’re almost there 👀')
       } else if (updatedRow.unlocked_pieces.length >= 3) {
-        setMessage('Great start 🌱')
+        setMessage('Great progress 🌱')
       } else {
-        setMessage('')
+        setMessage('Nice start 🌿')
       }
 
-      // Auto-open the green fact for the newly unlocked piece
-      openFactModal(randomIndex)
+      openFactModal(nextPieceIndex)
     } catch (error: any) {
       setMessage(`Error: ${error.message}`)
     } finally {
@@ -265,49 +297,6 @@ export default function Home() {
   const handleBackToIntro = () => {
     setStep('intro')
     setMessage('')
-  }
-
-  const handleRestartTest = async () => {
-    if (!currentEmail) {
-      setStep('intro')
-      return
-    }
-
-    try {
-      setLoading(true)
-
-      const { data: resetData, error } = await supabase
-        .from('puzzle_progress')
-        .update({
-          unlocked_pieces: [],
-          today_count: 0,
-          reward_claimed: false,
-          last_unlock_date: today,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('email', currentEmail)
-        .select()
-        .single()
-
-      if (error) {
-        throw error
-      }
-
-      setProgress({
-        ...resetData,
-        unlocked_pieces: Array.isArray(resetData.unlocked_pieces)
-          ? resetData.unlocked_pieces
-          : [],
-      } as PuzzleProgressRow)
-
-      setMessage('')
-      closeFactModal()
-      setStep('puzzle')
-    } catch (error: any) {
-      setMessage(`Error: ${error.message}`)
-    } finally {
-      setLoading(false)
-    }
   }
 
   const handlePieceClick = (pieceIndex: number, isUnlocked: boolean) => {
@@ -335,27 +324,27 @@ export default function Home() {
       <div className="w-full max-w-md rounded-[2rem] border-2 p-8 shadow-sm">
         {step === 'intro' && (
           <>
-            <h1 className="mb-4 text-center text-2xl font-semibold">
+            <h1 className="mb-4 text-center text-2xl font-bold">
               Green Puzzle
             </h1>
 
-            <p className="mb-4 text-sm leading-6 text-gray-700">
+            <p className="mb-4 text-sm font-medium leading-7 text-gray-700">
               Welcome to Green Puzzle, a simple campus recycling challenge
               designed to encourage daily sustainable action.
             </p>
 
-            <p className="mb-4 text-sm leading-6 text-gray-700">
+            <p className="mb-4 text-sm font-medium leading-7 text-gray-700">
               Each time you recycle and participate, you can unlock one random
               puzzle piece and gradually reveal the full image.
             </p>
 
-            <p className="mb-8 text-sm leading-6 text-gray-700">
+            <p className="mb-8 text-sm font-medium leading-7 text-gray-700">
               Complete all 9 pieces to receive a reward 🎁
             </p>
 
             <button
               onClick={handleStart}
-              className="w-full rounded-[1.5rem] border-2 px-4 py-4 text-lg"
+              className="w-full rounded-[1.5rem] border-2 px-4 py-4 text-lg font-semibold"
             >
               Get Started
             </button>
@@ -364,11 +353,11 @@ export default function Home() {
 
         {step === 'email' && (
           <>
-            <h1 className="mb-4 text-center text-2xl font-semibold">
+            <h1 className="mb-4 text-center text-2xl font-bold">
               Green Puzzle
             </h1>
 
-            <p className="mb-6 text-center text-sm text-gray-600">
+            <p className="mb-6 text-center text-sm font-medium text-gray-600">
               Enter your CLU email to participate
             </p>
 
@@ -378,10 +367,10 @@ export default function Home() {
                 placeholder="you@callutheran.edu"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full rounded-[1.5rem] border-2 px-4 py-4 text-lg outline-none"
+                className="w-full rounded-[1.5rem] border-2 px-4 py-4 text-lg font-medium outline-none"
               />
 
-              <p className="text-xs leading-5 text-gray-500">
+              <p className="text-xs font-medium leading-6 text-gray-500">
                 Please use your CLU email. It will be used to save your progress
                 and notify you how to collect your reward after the puzzle is
                 completed. No spam — just for this challenge.
@@ -390,17 +379,19 @@ export default function Home() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full rounded-[1.5rem] border-2 px-4 py-4 text-lg"
+                className="w-full rounded-[1.5rem] border-2 px-4 py-4 text-lg font-semibold"
               >
                 {loading ? 'Loading...' : 'Continue'}
               </button>
             </form>
 
-            {message && <p className="mt-3 text-xs text-red-500">{message}</p>}
+            {message && (
+              <p className="mt-3 text-xs font-medium text-red-500">{message}</p>
+            )}
 
             <button
               onClick={handleBackToIntro}
-              className="mt-4 w-full text-sm text-gray-500"
+              className="mt-4 w-full text-sm font-medium text-gray-500"
             >
               Back
             </button>
@@ -409,18 +400,18 @@ export default function Home() {
 
         {step === 'puzzle' && (
           <>
-            <h1 className="mb-3 text-center text-2xl font-semibold">
+            <h1 className="mb-3 text-center text-2xl font-bold">
               Green Puzzle
             </h1>
 
-            <p className="mb-6 text-center text-sm text-gray-600">
-              Test mode: unlock pieces continuously 🌱
+            <p className="mb-6 text-center text-sm font-medium text-gray-600">
+              Recycle and unlock one puzzle piece each day 🌱
             </p>
 
             <button
               onClick={handleRecycle}
               disabled={loading}
-              className="w-full rounded-[1.5rem] border-2 px-4 py-4 text-lg"
+              className="w-full rounded-[1.5rem] border-2 px-4 py-4 text-lg font-semibold"
             >
               {loading ? 'Processing...' : 'I Recycled'}
             </button>
@@ -461,21 +452,26 @@ export default function Home() {
               })}
             </div>
 
-            <p className="mt-5 text-sm">Progress: {currentUnlocked.length} / 9</p>
-
-            <p className="mt-3 text-xs leading-5 text-gray-500">
-              Test mode is enabled. Daily limit is temporarily disabled for full
-              flow testing.
+            <p className="mt-5 text-sm font-semibold text-gray-800">
+              Progress: {currentUnlocked.length} / 9
             </p>
 
-            <p className="mt-2 text-xs leading-5 text-gray-500">
+            <p className="mt-3 text-xs font-medium leading-6 text-gray-500">
+              Each CLU email can unlock one puzzle piece per day.
+            </p>
+
+            <p className="mt-2 text-xs font-medium leading-6 text-gray-500">
               Tap any unlocked piece to view its green fact.
             </p>
 
-            {message && <p className="mt-2 text-xs text-green-600">{message}</p>}
+            {message && (
+              <p className="mt-2 text-xs font-medium text-green-600">
+                {message}
+              </p>
+            )}
 
             {currentEmail && (
-              <p className="mt-2 break-all text-xs text-gray-500">
+              <p className="mt-2 break-all text-xs font-medium text-gray-500">
                 {currentEmail}
               </p>
             )}
@@ -484,28 +480,27 @@ export default function Home() {
 
         {step === 'success' && (
           <>
-            <h1 className="mb-4 text-center text-2xl font-semibold text-green-700">
+            <h1 className="mb-4 text-center text-2xl font-bold text-green-700">
               Congratulations 🎉
             </h1>
 
-            <p className="mb-4 text-center text-sm leading-6 text-gray-700">
+            <p className="mb-4 text-center text-sm font-medium leading-7 text-gray-700">
               You completed the Green Puzzle.
             </p>
 
-            <p className="mb-6 text-center text-sm leading-6 text-gray-700">
+            <p className="mb-6 text-center text-sm font-medium leading-7 text-gray-700">
               Your reward is on the way 🎁
             </p>
 
-            <p className="mb-6 break-all text-center text-xs leading-5 text-gray-500">
+            <p className="mb-6 break-all text-center text-xs font-medium leading-6 text-gray-500">
               {currentEmail}
             </p>
 
             <button
-   onClick={() => setStep('puzzle')}
-  className="w-full rounded-[1.5rem] border-2 px-4 py-4 text-lg"
->
-  Back
-  Back
+              onClick={() => setStep('puzzle')}
+              className="w-full rounded-[1.5rem] border-2 px-4 py-4 text-lg font-semibold"
+            >
+              Back
             </button>
           </>
         )}
@@ -518,12 +513,12 @@ export default function Home() {
               Piece {selectedPiece} 🌱
             </h2>
 
-            <p className="leading-7 text-gray-700">{selectedFact}</p>
+            <p className="font-medium leading-7 text-gray-700">{selectedFact}</p>
 
             <div className="mt-6 flex justify-end">
               <button
                 onClick={closeFactModal}
-                className="rounded-xl bg-green-600 px-4 py-2 text-white hover:bg-green-700"
+                className="rounded-xl bg-green-600 px-4 py-2 font-semibold text-white hover:bg-green-700"
               >
                 Got it
               </button>
