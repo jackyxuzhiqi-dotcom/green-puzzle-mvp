@@ -38,7 +38,14 @@ export default function Home() {
   const [selectedFact, setSelectedFact] = useState<string | null>(null)
   const [selectedPiece, setSelectedPiece] = useState<number | null>(null)
 
-  const today = new Date().toISOString().split('T')[0]
+  const getPacificDate = () => {
+  return new Intl.DateTimeFormat('sv-SE', {
+    timeZone: 'America/Los_Angeles',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date())
+  }
 
   const isSameDay = (dateStr: string | null, todayStr: string) => {
     return dateStr === todayStr
