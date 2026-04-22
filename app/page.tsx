@@ -39,19 +39,17 @@ export default function Home() {
   const [selectedPiece, setSelectedPiece] = useState<number | null>(null)
 
   const getPacificDate = () => {
-    return new Intl.DateTimeFormat('sv-SE', {
-      timeZone: 'America/Los_Angeles',
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-    }).format(new Date())
-  }
-
-  const today = getPacificDate()
+  return new Intl.DateTimeFormat('sv-SE', {
+    timeZone: 'America/Los_Angeles',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date())
+   }
 
   const isSameDay = (dateStr: string | null, todayStr: string) => {
-    return dateStr === todayStr
-  }
+  return dateStr === todayStr
+   }
 
   const currentUnlocked = useMemo(() => {
     return progress?.unlocked_pieces ?? []
