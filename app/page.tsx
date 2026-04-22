@@ -228,12 +228,24 @@ export default function Home() {
 
       // Keep piece 0 as the very last one to unlock.
       if (latestUnlocked.length === 8 && remaining.includes(0)) {
-        nextPieceIndex = 0
-      } else {
-        const randomPool = remaining.filter((i) => i !== 0)
-        nextPieceIndex =
+          nextPieceIndex = 0
+           } else {
+           const randomPool = remaining.filter((i) => i !== 0)
+          nextPieceIndex =
           randomPool[Math.floor(Math.random() * randomPool.length)]
-      }
+          }
+
+          // 记录这一次解锁行为
+           const { error: eventError } = await supabase
+            .from('puzzle_events')
+            .insert({
+             email: currentEmail,
+            unlocked_piece: nextPieceIndex,
+              })
+
+             if (eventError) {
+               throw eventError
+              }
 
       const updatedUnlocked = [...latestUnlocked, nextPieceIndex]
       const isCompleted = updatedUnlocked.length >= 9
