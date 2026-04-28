@@ -27,6 +27,12 @@ const greenFacts = [
   'Small actions, repeated daily, can create a big environmental impact.',
 ]
 
+function getTodayLA() {
+  return new Date().toLocaleDateString('en-CA', {
+    timeZone: 'America/Los_Angeles',
+  })
+}
+
 export default function Home() {
   const [step, setStep] = useState<Step>('intro')
   const [email, setEmail] = useState('')
@@ -38,7 +44,7 @@ export default function Home() {
   const [selectedFact, setSelectedFact] = useState<string | null>(null)
   const [selectedPiece, setSelectedPiece] = useState<number | null>(null)
 
-  const today = new Date().toISOString().split('T')[0]
+  const today = getTodayLA()
 
   const isSameDay = (dateStr: string | null, todayStr: string) => {
     return dateStr === todayStr
@@ -149,10 +155,11 @@ export default function Home() {
       setLoading(true)
       setMessage('')
 
+      const todayLA = getTodayLA()
       const latestUnlocked = progress.unlocked_pieces ?? []
 
       const alreadyUnlockedToday =
-        isSameDay(progress.last_unlock_date, today) &&
+        isSameDay(progress.last_unlock_date, todayLA) &&
         (progress.today_count ?? 0) >= 1
 
       if (alreadyUnlockedToday) {
@@ -226,26 +233,24 @@ export default function Home() {
 
       let nextPieceIndex: number
 
-      // Keep piece 0 as the very last one to unlock.
       if (latestUnlocked.length === 8 && remaining.includes(0)) {
-          nextPieceIndex = 0
-           } else {
-           const randomPool = remaining.filter((i) => i !== 0)
-          nextPieceIndex =
+        nextPieceIndex = 0
+      } else {
+        const randomPool = remaining.filter((i) => i !== 0)
+        nextPieceIndex =
           randomPool[Math.floor(Math.random() * randomPool.length)]
-          }
+      }
 
-          // 记录这一次解锁行为
-           const { error: eventError } = await supabase
-            .from('puzzle_events')
-            .insert({
-             email: currentEmail,
-            unlocked_piece: nextPieceIndex,
-              })
+      const { error: eventError } = await supabase
+        .from('puzzle_events')
+        .insert({
+          email: currentEmail,
+          unlocked_piece: nextPieceIndex,
+        })
 
-             if (eventError) {
-               throw eventError
-              }
+      if (eventError) {
+        throw eventError
+      }
 
       const updatedUnlocked = [...latestUnlocked, nextPieceIndex]
       const isCompleted = updatedUnlocked.length >= 9
@@ -255,7 +260,7 @@ export default function Home() {
         .update({
           unlocked_pieces: updatedUnlocked,
           today_count: 1,
-          last_unlock_date: today,
+          last_unlock_date: todayLA,
           reward_claimed: isCompleted ? true : progress.reward_claimed,
           updated_at: new Date().toISOString(),
         })
@@ -383,8 +388,8 @@ export default function Home() {
               />
 
               <p className="text-xs font-medium leading-6 text-gray-500">
-                By entering your email, you agree to participate in this recycling experiment. 
-                Your information will only be used to track progress and distribute rewards. 
+                By entering your email, you agree to participate in this recycling experiment.
+                Your information will only be used to track progress and distribute rewards.
                 No spam.
               </p>
 
