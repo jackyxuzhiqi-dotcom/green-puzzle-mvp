@@ -432,11 +432,6 @@ export default function Home() {
               Progress: {currentUnlocked.length} / 9
             </p>
 
-            <p className="mt-3 text-xs font-medium leading-6 text-gray-500">
-              Each CLU email can unlock up to 3 puzzle pieces every 24 hours. Each
-              unlocked piece reveals a recycling fact.
-            </p>
-
             {message && (
               <p className="mt-2 text-xs font-medium text-green-600">
                 {message}
