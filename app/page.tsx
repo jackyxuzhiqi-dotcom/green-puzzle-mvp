@@ -319,7 +319,7 @@ export default function Home() {
             </p>
 
             <p className="mb-8 text-sm font-medium leading-7 text-gray-700">
-              Complete all 9 pieces to receive a $5 Starbucks Gift Card  🎁
+              Complete all 9 pieces to receive a reward 🎁
             </p>
 
             <button
@@ -457,7 +457,7 @@ export default function Home() {
             </p>
 
             <p className="mb-6 text-center text-sm font-medium leading-7 text-gray-700">
-              Your reward is on the way 🎁
+              Your $5 Starbucks Gift Card is on the way 🎁
             </p>
 
             <p className="mb-6 break-all text-center text-xs font-medium leading-6 text-gray-500">
