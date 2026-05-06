@@ -394,7 +394,7 @@ export default function Home() {
               disabled={loading}
               className="w-full rounded-[1.5rem] border-2 px-4 py-4 text-lg font-semibold"
             >
-              {loading ? 'Loading...' : 'Did You Know?'}
+              {loading ? 'Loading...' : 'Tap Here to Unlock'}
             </button>
 
             <div className="mt-8 grid grid-cols-3 gap-3">
