@@ -15,6 +15,8 @@ type PuzzleProgressRow = {
   updated_at?: string
 }
 
+const DAILY_LIMIT = 3
+
 const greenFacts = [
   'Recycling one aluminum can saves enough energy to power a TV for about 3 hours.',
   'Plastic bottles can take over 400 years to break down if not properly recycled.',
@@ -44,12 +46,6 @@ export default function Home() {
   const [selectedFact, setSelectedFact] = useState<string | null>(null)
   const [selectedPiece, setSelectedPiece] = useState<number | null>(null)
 
-  const today = getTodayLA()
-
-  const isSameDay = (dateStr: string | null, todayStr: string) => {
-    return dateStr === todayStr
-  }
-
   const currentUnlocked = useMemo(() => {
     return progress?.unlocked_pieces ?? []
   }, [progress])
@@ -71,9 +67,7 @@ export default function Home() {
       .eq('email', normalizedEmail)
       .maybeSingle()
 
-    if (fetchError) {
-      throw fetchError
-    }
+    if (fetchError) throw fetchError
 
     if (existing) {
       return {
@@ -101,9 +95,7 @@ export default function Home() {
       .select()
       .single()
 
-    if (insertError) {
-      throw insertError
-    }
+    if (insertError) throw insertError
 
     return {
       ...created,
@@ -148,7 +140,7 @@ export default function Home() {
     }
   }
 
-  const handleRecycle = async () => {
+  const handleDidYouKnow = async () => {
     if (!currentEmail || !progress) return
 
     try {
@@ -157,13 +149,12 @@ export default function Home() {
 
       const todayLA = getTodayLA()
       const latestUnlocked = progress.unlocked_pieces ?? []
+      const isSameDay = progress.last_unlock_date === todayLA
 
-      const alreadyUnlockedToday =
-        isSameDay(progress.last_unlock_date, todayLA) &&
-        (progress.today_count ?? 0) >= 1
+      const todayCount = isSameDay ? progress.today_count ?? 0 : 0
 
-      if (alreadyUnlockedToday) {
-        setMessage("You've already unlocked today's piece. Come back tomorrow 🌱")
+      if (todayCount >= DAILY_LIMIT) {
+        setMessage('Today’s learning mission is complete 🌱')
         return
       }
 
@@ -179,9 +170,7 @@ export default function Home() {
             .select()
             .single()
 
-          if (completeError) {
-            throw completeError
-          }
+          if (completeError) throw completeError
 
           setProgress({
             ...completedRow,
@@ -203,30 +192,6 @@ export default function Home() {
       )
 
       if (remaining.length === 0) {
-        const { data: completedRow, error: completeError } = await supabase
-          .from('puzzle_progress')
-          .update({
-            reward_claimed: true,
-            updated_at: new Date().toISOString(),
-          })
-          .eq('email', currentEmail)
-          .select()
-          .single()
-
-        if (completeError) {
-          throw completeError
-        }
-
-        setProgress({
-          ...completedRow,
-          unlocked_pieces: Array.isArray(completedRow.unlocked_pieces)
-            ? completedRow.unlocked_pieces
-            : [],
-          today_count: completedRow.today_count ?? 0,
-          last_unlock_date: completedRow.last_unlock_date ?? null,
-          reward_claimed: completedRow.reward_claimed ?? false,
-        } as PuzzleProgressRow)
-
         setStep('success')
         return
       }
@@ -248,9 +213,7 @@ export default function Home() {
           unlocked_piece: nextPieceIndex,
         })
 
-      if (eventError) {
-        throw eventError
-      }
+      if (eventError) throw eventError
 
       const updatedUnlocked = [...latestUnlocked, nextPieceIndex]
       const isCompleted = updatedUnlocked.length >= 9
@@ -259,7 +222,7 @@ export default function Home() {
         .from('puzzle_progress')
         .update({
           unlocked_pieces: updatedUnlocked,
-          today_count: 1,
+          today_count: todayCount + 1,
           last_unlock_date: todayLA,
           reward_claimed: isCompleted ? true : progress.reward_claimed,
           updated_at: new Date().toISOString(),
@@ -268,9 +231,7 @@ export default function Home() {
         .select()
         .single()
 
-      if (updateError) {
-        throw updateError
-      }
+      if (updateError) throw updateError
 
       const updatedRow: PuzzleProgressRow = {
         ...updated,
@@ -284,13 +245,15 @@ export default function Home() {
 
       setProgress(updatedRow)
 
-      if (updatedRow.unlocked_pieces.length >= 9) {
+      if (isCompleted) {
         openFactModal(nextPieceIndex)
         setStep('success')
         return
       }
 
-      if (updatedRow.unlocked_pieces.length >= 6) {
+      if (updatedRow.today_count >= DAILY_LIMIT) {
+        setMessage('Today’s learning mission is complete 🌱')
+      } else if (updatedRow.unlocked_pieces.length >= 6) {
         setMessage('You’re almost there 👀')
       } else if (updatedRow.unlocked_pieces.length >= 3) {
         setMessage('Great progress 🌱')
@@ -329,7 +292,7 @@ export default function Home() {
         const row = await loadOrCreateProgress(currentEmail)
         setProgress(row)
       } catch {
-        // ignore for now
+        // ignore
       }
     }
 
@@ -346,13 +309,13 @@ export default function Home() {
             </h1>
 
             <p className="mb-4 text-sm font-medium leading-7 text-gray-700">
-              Welcome to Green Puzzle, a simple campus recycling challenge
-              designed to encourage daily sustainable action.
+              Welcome to Green Puzzle, a short recycling knowledge challenge
+              designed to make sustainability learning simple and engaging.
             </p>
 
             <p className="mb-4 text-sm font-medium leading-7 text-gray-700">
-              Each time you recycle and participate, you can unlock one random
-              puzzle piece and gradually reveal the full image.
+              Scan, enter your CLU email, learn recycling facts, and unlock
+              puzzle pieces each day.
             </p>
 
             <p className="mb-8 text-sm font-medium leading-7 text-gray-700">
@@ -388,9 +351,8 @@ export default function Home() {
               />
 
               <p className="text-xs font-medium leading-6 text-gray-500">
-                By entering your email, you agree to participate in this recycling experiment.
-                Your information will only be used to track progress and distribute rewards.
-                No spam.
+                Your CLU email will be used to save your progress and send
+                reward information after completion.
               </p>
 
               <button
@@ -403,7 +365,9 @@ export default function Home() {
             </form>
 
             {message && (
-              <p className="mt-3 text-xs font-medium text-red-500">{message}</p>
+              <p className="mt-3 text-xs font-medium text-red-500">
+                {message}
+              </p>
             )}
 
             <button
@@ -422,15 +386,15 @@ export default function Home() {
             </h1>
 
             <p className="mb-6 text-center text-sm font-medium text-gray-600">
-              Recycle and unlock one puzzle piece each day 🌱
+              Learn a recycling fact and unlock up to 3 puzzle pieces each day 🌱
             </p>
 
             <button
-              onClick={handleRecycle}
+              onClick={handleDidYouKnow}
               disabled={loading}
               className="w-full rounded-[1.5rem] border-2 px-4 py-4 text-lg font-semibold"
             >
-              {loading ? 'Processing...' : 'I Recycled'}
+              {loading ? 'Loading...' : 'Did You Know?'}
             </button>
 
             <div className="mt-8 grid grid-cols-3 gap-3">
@@ -455,14 +419,9 @@ export default function Home() {
                       backgroundSize: '300% 300%',
                       backgroundPosition: `${col * 50}% ${row * 50}%`,
                     }}
-                    aria-label={
-                      isUnlocked
-                        ? `Open puzzle piece ${i + 1} green fact`
-                        : `Locked puzzle piece ${i + 1}`
-                    }
                   >
                     {!isUnlocked && (
-                      <div className="absolute inset-0 bg-gradient-to-br from-green-900 to-green-700 opacity-95 transition-all duration-300" />
+                      <div className="absolute inset-0 bg-gradient-to-br from-green-900 to-green-700 opacity-95" />
                     )}
                   </button>
                 )
@@ -474,11 +433,8 @@ export default function Home() {
             </p>
 
             <p className="mt-3 text-xs font-medium leading-6 text-gray-500">
-              Each CLU email can unlock one puzzle piece per day.
-            </p>
-
-            <p className="mt-2 text-xs font-medium leading-6 text-gray-500">
-              Tap any unlocked piece to view its green fact.
+              Each CLU email can unlock up to 3 puzzle pieces per day. Each
+              unlocked piece reveals a recycling fact.
             </p>
 
             {message && (
@@ -530,7 +486,9 @@ export default function Home() {
               Piece {selectedPiece} 🌱
             </h2>
 
-            <p className="font-medium leading-7 text-gray-700">{selectedFact}</p>
+            <p className="font-medium leading-7 text-gray-700">
+              {selectedFact}
+            </p>
 
             <div className="mt-6 flex justify-end">
               <button
