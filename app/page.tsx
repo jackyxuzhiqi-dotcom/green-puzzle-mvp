@@ -386,7 +386,7 @@ export default function Home() {
             </h1>
 
             <p className="mb-6 text-center text-sm font-medium text-gray-600">
-              Learn a recycling fact and unlock up to 3 puzzle pieces each day 🌱
+              Learn a recycling fact and unlock up to 3 puzzle pieces every 24 hours 🌱
             </p>
 
             <button
